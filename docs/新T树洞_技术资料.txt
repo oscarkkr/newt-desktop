@@ -1,0 +1,265 @@
+================================================================
+新T树洞 (new-t) 桌面 App 开发 —— 技术资料汇总
+================================================================
+整理日期: 2026-07-22
+用途: 为「新T树洞轻量桌面 app」开发预留的接口 / 数据结构 / 坑位备忘
+来源: 逆向前端 SPA (new-t.github.io) 的 JS bundle + 实测后端 API
+说明: 本文档只记录公开可观测的接口结构,不含任何个人凭证(token 见 §4)。
+
+
+================================================================
+§0. 一句话总览
+================================================================
+新T树洞 = 清华「树洞」被关停后,社区复建的匿名校园论坛。
+- 前端: 纯静态 SPA (React,create-react-app 构建),托管在 GitHub Pages
+        https://new-t.github.io/
+- 后端: 独立 API 服务(疑似 hole-thu 系开源树洞后端,Django/类 Flask)
+        默认 https://api.tholeapis.top/
+- 前后端完全分离,前端只是壳;真正的数据全部来自后端 REST 接口。
+- 桌面 app 只需直接调后端 API 即可,不必依赖前端页面。
+
+
+================================================================
+§1. 架构 & Base URL
+================================================================
+前端读取后端地址的逻辑(来自 bundle):
+    window.BACKEND = localStorage.BACKEND || "https://api.tholeapis.top/"
+
+两个 API 版本(注意路径里带下划线):
+    v1 base:  https://api.tholeapis.top/_api/v1
+    v2 base:  https://api.tholeapis.top/_api/v2
+    (前端里 Te() 返回 v1,Ce() 返回 v2)
+
+彩蛋/注意: 前端启动时会去 fetch
+    https://api.github.com/users/hole-thu
+读取该 GitHub 用户 bio,base64(atob)解码后作为部分运行时配置。
+→ 说明后端地址等可能随该配置漂移;app 里 base URL 最好做成可配置项,
+  不要写死,给用户一个「服务器地址」设置入口(对应前端的 localStorage.BACKEND)。
+
+
+================================================================
+§2. 认证 (Auth)
+================================================================
+- 机制: 所有请求带 HTTP 头  User-Token: <token>
+- token 来源: 前端存在浏览器 localStorage.TOKEN。
+  用户在已登录的 new-t.github.io 页面,开发者工具 Console 里执行
+      localStorage.TOKEN
+  即可拿到自己的 token 字符串(形如 16 位字母数字)。
+- token 即身份: 它等价于该匿名用户的登录态,能发帖/评论/删帖。
+  ⚠️ 安全: 视作密码。app 里应存到系统 keychain / 加密存储,
+     不要明文写进代码、配置文件或日志,不要上传/同步。
+
+- 【重要坑】必须带浏览器 User-Agent,否则后端返回 403 Forbidden。
+  实测可用的 UA:
+      Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 \
+      (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36
+  → app 的 HTTP 客户端务必设置一个正常浏览器 UA。
+
+
+================================================================
+§3. 接口清单 (Endpoint Reference)
+================================================================
+下面 e/t/n/r 是前端源码里的形参,已翻译成含义。
+所有请求都要带 header: User-Token, User-Agent。
+GET 无 body;POST 用 application/x-www-form-urlencoded。
+
+--- 读取类 (GET) ---
+
+[时间线列表]  GET /_api/v1/getlist?p=<page>&order_mode=<mode>&room_id=<room>
+    p:          页码(从 1 开始)—— 注意参数名是 p,不是 page!
+    order_mode: 排序方式(前端一个下拉:最新/最热等,取值为数字)
+    room_id:    分区 id;若「显示全部分区」则传空字符串
+    ⚠️ 这是首页时间线的正确签名。用 page=/room_id=1 之类会 422。
+
+[全文/标签搜索] GET /_api/v1/search?search_mode=<m>&page=<page>&room_id=<room>&keywords=<kw>&pagesize=<n>
+    search_mode: 0 = 标签/标题匹配(结果很少)
+                 1 = 全文搜索(结果多得多)★做搜索一定用 1
+                 例: 关键词「转码」→ mode0 仅 4 条,mode1 有 ~497 条
+    page:        页码(从 1 开始)
+    room_id:     分区;空 = 全部
+    keywords:    搜索词,需 URL-encode;支持高级语法见 §6
+    pagesize:    每页条数(实测 25 常用)
+    ⚠️ 返回里的 count 字段 = 本页条数,不是总数!(见 §5 坑位)
+
+[单帖详情]    GET /_api/v1/getone?pid=<pid>
+              返回 { code, data: <post对象> }
+
+[多帖批量]    GET /_api/v1/getmulti?pids=<pid1>&pids=<pid2>&...
+              一次取多个帖子(pids 可重复传多次)
+
+[某帖评论]    GET /_api/v1/getcomment?pid=<pid>
+              返回 { code, data: [<comment对象>...], likenum, attention, n_attentions }
+              一次返回该帖全部评论(实测 101 条一次给全,未见分页参数)
+
+[加载楼中楼]  GET /_api/v1/load_replies?...   (楼层回复;参数未细挖)
+
+[关注列表]    GET /_api/v1/get_attention?...
+
+--- 写入 / 交互类 (POST，body 为 form-urlencoded) ---
+
+[发帖]        POST /_api/v1/dopost
+    body: cw, text, allow_search(1/""), use_title(1/""), room_id,
+          poll_options(可多个，投票用)
+
+[发评论]      POST /_api/v2/post/<pid>/comment      ← 注意是 v2!
+    body: text, use_title(1/"")
+
+[点赞/关注帖] POST /_api/v1/setattention   body: pid, switch(1/0)
+[投票]        POST /_api/v1/addvote        body: vote, pid
+[表情 reaction] POST /_api/v2/...          body: status
+[举报]        POST /_api/v1/report         body: pid, reason, [should_hide=1]
+[拉黑]        POST /_api/v1/block          body: type, id
+[删除]        POST /_api/v1/del            body: type, id, note
+[改折叠词cw]  POST /_api/v1/update_cw      body: cw, pid
+[设置头衔]    POST /_api/v1/set_title      body: title
+[推送订阅]    POST /_api/v2/...set_notification  body: enable, endpoint, auth, p256dh
+
+（桌面 app v1 版建议只做「读」+ 少量「发帖/评论/点赞」，交互类按需接。）
+
+
+================================================================
+§4. Token 拿取步骤（写给最终用户）
+================================================================
+1. 浏览器打开 https://new-t.github.io/ 并完成登录。
+2. F12 → Console,输入:  localStorage.TOKEN  回车。
+3. 复制出来的字符串,粘进 app 的「登录/设置 token」框。
+本文档不内嵌任何具体 token 值。
+
+
+================================================================
+§5. 数据模型 (Data Models)
+================================================================
+--- 帖子 post 对象字段(getone/getlist/search 的 data 项) ---
+    pid                帖子 id(整数,全站唯一,单调递增≈时间序)
+    text               正文
+    cw                 折叠标题 / content warning(可空)
+    timestamp          发帖 Unix 时间戳
+    create_time        同上(创建时间)
+    last_comment_time  最后评论时间(Unix)
+    likenum            点赞/关注数
+    n_attentions       关注数
+    n_comments         评论数
+    reply              回复数
+    room_id            分区 id
+    up_votes/down_votes 投票数(投票帖)
+    poll               投票结构(无则 null)
+    hot_score          热度分(排序用,可空)
+    author_title       楼主头衔(可空)
+    allow_search       是否允许被搜索(bool)
+    attention          当前用户是否已关注(bool)
+    is_blocked/blocked/is_reported/is_tmp/can_del/reaction_status  状态位
+    comments           内联评论(列表页多为 null,需另调 getcomment)
+
+--- 评论 comment 对象字段(getcomment 的 data 项) ---
+    cid            评论 id
+    pid 归属       (通过请求参数)
+    text           评论正文
+    name_id        楼层匿名代号(如 "洞主"/"Alice" 之类的稳定化名)
+    author_title   头衔(可空)
+    create_time    Unix 时间戳
+    timestamp      同上
+    is_tmp/blocked/is_blocked/can_del  状态位
+
+--- 时间处理 ---
+    所有时间为 Unix 秒级时间戳,显示需转北京时间(UTC+8)。
+    python: datetime.fromtimestamp(ts, tz=timezone(timedelta(hours=8)))
+
+
+================================================================
+§6. 搜索高级语法(search keywords 支持,来自站内说明)
+================================================================
+    多关键词:      空格分隔默认 AND;OR 表示或
+    精确短语:      用单引号或双引号包裹  "..." 或 '...'
+    必含/排除:     +词 必须包含; -词 必须排除
+    字段限定:      content:词  只搜正文;  comment:词  只搜评论
+    帖号范围:      按 post_id 范围过滤
+    排序:          有多种 sort 模式
+    关注列表内搜:  支持正则
+（app 的搜索框可以把这些语法透传给 keywords 参数。）
+
+
+================================================================
+§7. 坑位清单 (Gotchas) —— 血泪总结
+================================================================
+1. 403 Forbidden:  不带浏览器 User-Agent 会被拒。→ 永远设 UA。
+2. search_mode:    要全文搜结果必须 search_mode=1;=0 只匹配标签,极少。
+3. count 字段:     是「本页条数」不是总数。判断是否搜完 → 一直翻页
+                   直到某页 data 为空(而不是拿 count 当 total)。
+4. getlist 参数:   是 p= 和 order_mode=,不是 page=;room_id 空=全部。
+                   传错参数返回 422(HTML 错误页,不是 JSON)。
+5. 正文含控制字符: 帖子文本里可能有裸控制字符,严格 JSON 解析会炸。
+                   python 用 json.loads(s, strict=False);其他语言需容错。
+6. base URL 会漂移:后端地址来自 localStorage/GitHub bio 配置,做成可配置。
+7. 评论接口跨版本: 读评论在 v1(getcomment),发评论在 v2(post/<pid>/comment)。
+8. 无官方文档:     以上全为逆向 + 实测,后端更新可能变;app 要对
+                   非预期返回(HTML 错误页、字段缺失)做防御。
+
+
+================================================================
+§8. 可复用的最小 Python 客户端(读接口)
+================================================================
+import urllib.request, urllib.parse, json
+from datetime import datetime, timezone, timedelta
+
+BASE = "https://api.tholeapis.top/_api/v1"
+UA   = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36")
+TOKEN = "<用户自己的 token,从 localStorage.TOKEN 取,勿硬编码>"
+
+def api(path):
+    req = urllib.request.Request(BASE + path,
+            headers={"User-Token": TOKEN, "User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=25) as r:
+        return json.loads(r.read().decode("utf-8", "replace"), strict=False)
+
+def search(keyword, page=1, mode=1, room="", pagesize=25):
+    kw = urllib.parse.quote(keyword)
+    return api(f"/search?search_mode={mode}&page={page}"
+               f"&room_id={room}&keywords={kw}&pagesize={pagesize}")
+
+def post(pid):     return api(f"/getone?pid={pid}")
+def comments(pid): return api(f"/getcomment?pid={pid}")
+
+def bj(ts):  # Unix → 北京时间字符串
+    return datetime.fromtimestamp(ts, tz=timezone(timedelta(hours=8)))\
+           .strftime("%Y-%m-%d %H:%M")
+
+# 全文搜索翻页直到空页
+def search_all(keyword, mode=1, max_pages=100):
+    out, p = [], 1
+    while p <= max_pages:
+        data = search(keyword, page=p, mode=mode).get("data") or []
+        if not data: break
+        out += data; p += 1
+    return out
+
+
+================================================================
+§9. 桌面 App 设计建议(备忘,非需求)
+================================================================
+定位: 轻量、只读为主的树洞浏览/搜索客户端(比网页更快、可离线缓存)。
+
+技术选型候选:
+  - Tauri (Rust + 前端):体积小、原生感强,契合「轻量」;token 可存系统 keychain。
+  - Electron:生态成熟但体积大,和「轻量」目标相悖。
+  - 若只想自用:Python + PySide/Tkinter,或干脆 CLI/TUI 也够。
+  推荐 Tauri:HTTP 请求在 Rust 侧发(天然带 UA、避开浏览器 CORS)、
+  token 走 keychain、前端复用 React 经验。
+
+核心功能拆解(MVP):
+  1. 设置页:后端 base URL(默认 api.tholeapis.top)+ token 输入 + 连通性测试。
+  2. 时间线:getlist 分页,下拉加载;分区(room)切换。
+  3. 搜索:search_mode=1 全文,支持 §6 高级语法透传;翻页到空停。
+  4. 帖子详情:getone + getcomment,评论按楼层/时间展示,时间转 UTC+8。
+  5. 本地缓存:SQLite 存已抓的帖/评论,支持离线看和二次全文检索(自建库)。
+  6.(可选)发帖/评论/点赞/关注,复用 §3 POST 接口。
+
+工程注意:
+  - 所有网络层集中封装,统一注入 UA + token,统一处理 422/403/HTML 错误页。
+  - 限速/退避:批量抓取时加 sleep,避免被后端限流封禁。
+  - JSON 容错:strict=False 或等价宽松解析。
+  - base URL / UA / token 全部可配置,不写死。
+
+（本 app 与之前的「转码资料整理」用的是同一套 API;若要做「本地全文库 +
+  离线检索」,可把 search_all 抓下来的数据灌进 SQLite FTS。）
+================================================================
