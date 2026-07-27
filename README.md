@@ -1,6 +1,6 @@
 # 新T树洞桌面端
 
-轻量的 macOS 新T树洞客户端。界面使用原生 HTML/CSS/JavaScript，网络、安全
+轻量的 macOS 与 Windows 新T树洞客户端。界面使用原生 HTML/CSS/JavaScript，网络、安全
 存储和离线缓存由 Rust/Tauri 负责，不需要 Node.js。
 
 ## 功能
@@ -15,7 +15,7 @@
 - 投票选项、提交投票和结果比例展示
 - 发帖、评论、指定昵称回复、线上关注
 - 线上关注、本地收藏和离线查看独立入口；关注后自动收藏，取消关注保留本地收藏
-- App 内 GitHub 登录，树洞 Token 存入 macOS 钥匙串
+- App 内 GitHub 登录，树洞 Token 存入 macOS 钥匙串或 Windows 凭据管理器
 - 启动时自动检查 GitHub Release，设置页也可手动检查；更新包经数字签名验证
 - 登录失效时自动提示重新授权
 - SQLite 离线缓存与断网回退
@@ -46,12 +46,14 @@ release/    按版本和平台整理的发布产物
 ```bash
 cargo test --workspace
 ./scripts/package_macos.sh
-open "release/v0.7.1/macos-arm64/新T树洞.app"
+open "release/v0.7.2/macos-arm64/新T树洞.app"
 ```
 
-当前发布包为 Apple Silicon (`arm64`) macOS 版本。由于项目尚未配置付费
-Apple Developer ID，GitHub Release 使用完整的 ad-hoc 签名。首次打开时，
-请在“系统设置 → 隐私与安全性”中确认允许；不要关闭 Gatekeeper。
+GitHub Release 同时提供 Apple Silicon (`arm64`) macOS DMG 和 Windows
+x64 NSIS 安装程序。macOS 版本由于项目尚未配置付费 Apple Developer ID，
+使用完整的 ad-hoc 签名；首次打开时请在“系统设置 → 隐私与安全性”中确认
+允许，不要关闭 Gatekeeper。Windows 版本尚未配置商业代码签名证书，首次
+运行安装程序时 Windows 可能显示“未知发布者”提示。
 
 ## 自动更新与发布
 
@@ -59,7 +61,8 @@ Apple Developer ID，GitHub Release 使用完整的 ad-hoc 签名。首次打开
 发现新版本时由用户确认下载，安装前必须通过 Tauri 更新签名校验。
 
 推送与 `src-tauri/tauri.conf.json` 版本一致的 `v*` 标签后，GitHub Actions
-会自动构建 Apple Silicon 安装包、签名更新包并发布 Release。仓库需要配置：
+会依次构建 Apple Silicon macOS 与 Windows x64 安装包、签名更新包并发布
+到同一个 Release。仓库需要配置：
 
 - `TAURI_SIGNING_PRIVATE_KEY`：受密码保护的加密私钥
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`：私钥密码
