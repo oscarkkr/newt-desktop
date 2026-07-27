@@ -838,6 +838,10 @@ body.resizing * {
   outline: none;
 }
 
+#compose-title:focus {
+  outline: none;
+}
+
 .update-card {
   display: flex;
   align-items: center;
@@ -898,6 +902,63 @@ body.resizing * {
   line-height: 1.7;
 }
 
+#compose-dialog {
+  max-height: calc(100vh - 30px);
+  overflow: auto;
+}
+
+.compose-room input {
+  width: min(180px, 100%);
+}
+
+.compose-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.compose-option {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 11px 12px;
+  background: #f7f9f6;
+  cursor: pointer;
+}
+
+.compose-option:hover {
+  border-color: var(--mint);
+  background: #f1faf6;
+}
+
+.compose-option input {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  margin: 2px 0 0;
+  accent-color: var(--mid);
+}
+
+.compose-option span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.compose-option b {
+  color: var(--ink);
+  font-size: 0.929rem;
+}
+
+.compose-option small {
+  color: var(--soft);
+  font-size: 0.786rem;
+  line-height: 1.45;
+}
+
 /* Typography follows the font-size preference without changing spacing or panel geometry. */
 .brand small { font-size: 0.857rem; }
 .mark { font-size: 1.786rem; }
@@ -949,5 +1010,11 @@ dialog header button { font-size: 1.357rem; }
 
   .resize-handle {
     display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .compose-options {
+    grid-template-columns: 1fr;
   }
 }

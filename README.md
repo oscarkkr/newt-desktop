@@ -46,11 +46,12 @@ release/    按版本和平台整理的发布产物
 ```bash
 cargo test --workspace
 ./scripts/package_macos.sh
-open "release/v0.7.0/macos-arm64/新T树洞.app"
+open "release/v0.7.1/macos-arm64/新T树洞.app"
 ```
 
-当前发布包为 Apple Silicon (`arm64`) macOS 版本。首次打开未经公证的本地
-构建时，可能需要在“系统设置 → 隐私与安全性”确认。
+当前发布包为 Apple Silicon (`arm64`) macOS 版本。由于项目尚未配置付费
+Apple Developer ID，GitHub Release 使用完整的 ad-hoc 签名。首次打开时，
+请在“系统设置 → 隐私与安全性”中确认允许；不要关闭 Gatekeeper。
 
 ## 自动更新与发布
 
