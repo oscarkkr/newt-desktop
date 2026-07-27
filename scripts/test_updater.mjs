@@ -6,9 +6,11 @@ const rust = await readFile(new URL("../src-tauri/src/lib.rs", import.meta.url),
 const html = await readFile(new URL("../web/index.html", import.meta.url), "utf8");
 const app = await readFile(new URL("../web/app.js", import.meta.url), "utf8");
 const workflow = await readFile(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+const cargo = await readFile(new URL("../src-tauri/Cargo.toml", import.meta.url), "utf8");
 
 assert.equal(config.bundle.createUpdaterArtifacts, true);
 assert.equal(config.bundle.macOS.signingIdentity, "-");
+assert.ok(config.bundle.icon.includes("icons/icon.ico"));
 assert.ok(config.plugins.updater.pubkey.length > 80);
 assert.deepEqual(config.plugins.updater.endpoints, [
   "https://github.com/oscarkkr/newt-desktop/releases/latest/download/latest.json",
@@ -23,5 +25,10 @@ assert.match(app, /update-dialog-title"\)\.focus\(\{preventScroll:true\}\)/);
 assert.match(app, /invoke\("install_update"\)/);
 assert.match(workflow, /tauri-apps\/tauri-action@v1/);
 assert.match(workflow, /TAURI_SIGNING_PRIVATE_KEY_PASSWORD/);
+assert.match(workflow, /platform: windows-latest/);
+assert.match(workflow, /rust-target: x86_64-pc-windows-msvc/);
+assert.match(workflow, /--bundles nsis/);
+assert.match(workflow, /max-parallel: 1/);
+assert.match(cargo, /features = \["apple-native", "windows-native"\]/);
 
-console.log("Signed GitHub updater wiring: OK");
+console.log("Signed cross-platform GitHub updater wiring: OK");
