@@ -13,6 +13,7 @@ use std::{
     time::Duration,
 };
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_updater::{Update, UpdaterExt};
 use thiserror::Error;
 use url::Url;
 
@@ -34,6 +35,7 @@ enum Error {
     #[error("服务器返回了无法识别的内容")] InvalidResponse,
     #[error("网络请求失败：{0}")] Network(String),
     #[error("本地数据读写失败：{0}")] Storage(String),
+    #[error("应用更新失败：{0}")] Update(String),
     #[error("{0}")] Other(String),
 }
 impl serde::Serialize for Error {
@@ -52,6 +54,13 @@ impl Default for Settings { fn default() -> Self { Self { base_url: DEFAULT_BASE
 struct SettingsSummary { base_url: String, has_token: bool }
 #[derive(Serialize)]
 struct Envelope { data: Value, source: &'static str, warning: Option<String> }
+struct PendingUpdate(Mutex<Option<Update>>);
+#[derive(Serialize)]
+struct UpdateInfo {
+    available: bool,
+    current_version: String,
+    version: Option<String>,
+}
 
 struct State { dir: PathBuf, settings: Mutex<Settings>, db: Mutex<Connection> }
 impl State {
@@ -465,12 +474,35 @@ fn list(v:&Value)->&[Value] { v.get("data").and_then(Value::as_array).map(Vec::a
     Ok(())
 }
 
+#[tauri::command]
+async fn check_for_update(app:tauri::AppHandle,pending:tauri::State<'_,PendingUpdate>)->Result<UpdateInfo>{
+    let current_version=app.package_info().version.to_string();
+    let update=app.updater().map_err(|e|Error::Update(e.to_string()))?
+        .check().await.map_err(|e|Error::Update(e.to_string()))?;
+    let info=UpdateInfo{
+        available:update.is_some(),
+        current_version,
+        version:update.as_ref().map(|release|release.version.clone()),
+    };
+    *pending.0.lock().map_err(|_|Error::Storage("更新状态不可用".into()))?=update;
+    Ok(info)
+}
+
+#[tauri::command]
+async fn install_update(app:tauri::AppHandle,pending:tauri::State<'_,PendingUpdate>)->Result<()>{
+    let update=pending.0.lock().map_err(|_|Error::Storage("更新状态不可用".into()))?
+        .take().ok_or_else(||Error::Other("没有待安装的更新，请重新检查".into()))?;
+    update.download_and_install(|_,_|{},||{}).await.map_err(|e|Error::Update(e.to_string()))?;
+    app.restart()
+}
+
 pub fn run(){
- tauri::Builder::default().setup(|app|{
+ tauri::Builder::default().plugin(tauri_plugin_updater::Builder::new().build()).setup(|app|{
    let dir=app.path().app_local_data_dir()?;std::fs::create_dir_all(&dir)?;
    let settings=std::fs::read_to_string(dir.join("settings.json")).ok().and_then(|s|serde_json::from_str(&s).ok()).unwrap_or_default();
-   app.manage(State{db:Mutex::new(init_db(dir.join("newt-cache.sqlite3")).map_err(|e|e.to_string())?),settings:Mutex::new(settings),dir});Ok(())
- }).invoke_handler(tauri::generate_handler![get_settings,save_settings,start_github_login,test_connection,get_timeline,search_posts,get_online_attention,get_local_favorites,is_local_favorite,set_local_favorite,get_post,get_comments,create_post,create_comment,set_attention,vote_poll,clear_cache])
+   app.manage(State{db:Mutex::new(init_db(dir.join("newt-cache.sqlite3")).map_err(|e|e.to_string())?),settings:Mutex::new(settings),dir});
+   app.manage(PendingUpdate(Mutex::new(None)));Ok(())
+ }).invoke_handler(tauri::generate_handler![get_settings,save_settings,start_github_login,test_connection,get_timeline,search_posts,get_online_attention,get_local_favorites,is_local_favorite,set_local_favorite,get_post,get_comments,create_post,create_comment,set_attention,vote_poll,clear_cache,check_for_update,install_update])
  .run(tauri::generate_context!()).expect("启动新T树洞失败");
 }
 

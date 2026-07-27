@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build signed macOS release
+    runs-on: macos-14
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.11" --locked
+
+      - name: Build and publish signed updater
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tauriScript: cargo tauri
+          tagName: v__VERSION__
+          releaseName: 新T树洞 v__VERSION__
+          releaseBody: |
+            新T树洞 macOS Apple Silicon 版本。
+
+            App 会验证更新包签名后再安装。
+          releaseDraft: false
+          prerelease: false
+          args: --target aarch64-apple-darwin
+          releaseAssetNamePattern: newt-desktop-[version]-[platform]-[arch].[ext]

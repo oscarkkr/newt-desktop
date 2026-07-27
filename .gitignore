@@ -1,3 +1,6 @@
 /target/
 /release/
 /.DS_Store
+/.env
+*.key
+*.key.pub
