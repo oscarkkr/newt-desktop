@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "新T树洞",
-  "version": "0.6.3",
+  "version": "0.7.0",
   "identifier": "app.newt.desktop",
   "build": { "frontendDist": "../web" },
   "app": {
@@ -18,5 +18,19 @@
       "csp": "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src ipc: http://ipc.localhost"
     }
   },
-  "bundle": { "active": false }
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg"],
+    "category": "SocialNetworking",
+    "icon": ["icons/icon.png"],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZGRENDNEExRjVGNThEMTIKUldRU2pmWDFvY1RjLzJaQTdoYzkzTExZT2dwOWdkUHZGVzR2cml6a0xRemhlT0Y0K2xiRlVLZWgK",
+      "endpoints": [
+        "https://github.com/oscarkkr/newt-desktop/releases/latest/download/latest.json"
+      ]
+    }
+  }
 }

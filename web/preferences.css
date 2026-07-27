@@ -834,6 +834,70 @@ body.resizing * {
   outline: none;
 }
 
+#update-dialog-title:focus {
+  outline: none;
+}
+
+.update-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 13px;
+  background: #f7f9f6;
+}
+
+.update-card div {
+  display: grid;
+  gap: 4px;
+}
+
+.update-card small {
+  color: var(--soft);
+  font-size: 0.786rem;
+}
+
+.update-card button {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 11px;
+  background: #fff;
+  color: var(--mid);
+  font-weight: 700;
+}
+
+.update-card button:disabled,
+#install-update:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.update-version {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 4px 0 16px;
+  border-radius: 10px;
+  padding: 16px;
+  background: #e7f6f0;
+  color: var(--mid);
+}
+
+.update-version i {
+  color: var(--soft);
+  font-style: normal;
+}
+
+.update-description {
+  margin-bottom: 0;
+  color: var(--soft);
+  line-height: 1.7;
+}
+
 /* Typography follows the font-size preference without changing spacing or panel geometry. */
 .brand small { font-size: 0.857rem; }
 .mark { font-size: 1.786rem; }

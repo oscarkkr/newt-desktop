@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 project_dir="${0:A:h:h}"
-release_dir="$project_dir/release/v0.6.3/macos-arm64"
+release_dir="$project_dir/release/v0.7.0/macos-arm64"
 app_dir="$release_dir/新T树洞.app"
 contents="$app_dir/Contents"
 cd "$project_dir"
@@ -11,5 +11,5 @@ cp "$project_dir/target/release/newt-desktop" "$contents/MacOS/newt-desktop"
 sips -s format icns "$project_dir/src-tauri/icons/icon.png" --out "$contents/Resources/AppIcon.icns" >/dev/null
 cp "$project_dir/scripts/Info.plist" "$contents/Info.plist"
 codesign --force --deep --sign - "$app_dir"
-ditto -c -k --sequesterRsrc --keepParent "$app_dir" "$release_dir/新T树洞-0.6.3-macos-arm64.zip"
+ditto -c -k --sequesterRsrc --keepParent "$app_dir" "$release_dir/新T树洞-0.7.0-macos-arm64.zip"
 echo "$app_dir"
