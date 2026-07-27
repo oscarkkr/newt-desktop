@@ -73,11 +73,15 @@
   <footer><button type="button" id="clear" class="danger">清除缓存</button><span></span><button value="cancel">取消</button><button class="primary">保存并测试</button></footer>
 </form></dialog>
 <dialog id="compose-dialog"><form id="compose-form" method="dialog">
-  <header><div><small class="eyebrow">NEW POST</small><h2>把话放进树洞</h2></div><button value="cancel">×</button></header>
+  <header><div><small class="eyebrow">NEW POST</small><h2 id="compose-title" tabindex="-1">把话放进树洞</h2></div><button id="compose-close" type="button" aria-label="关闭发布窗口">×</button></header>
   <label class="field">折叠标题（可选）<input id="cw" placeholder="给需要提醒的内容加一句说明"></label>
   <label class="field">正文<textarea id="text" rows="8" required placeholder="此刻你想说什么？"></textarea></label>
-  <div class="row"><label class="field">分区 ID<input id="post-room" placeholder="可选"></label><label><input id="allow-search" type="checkbox" checked> 允许搜索</label><label><input id="use-title" type="checkbox"> 使用头衔</label></div>
-  <footer><span></span><button value="cancel">取消</button><button class="primary">确认发布</button></footer>
+  <label class="field compose-room">分区 ID<input id="post-room" placeholder="可选"></label>
+  <div class="compose-options" aria-label="发布选项">
+    <label class="compose-option"><input id="allow-search" type="checkbox" checked><span><b>允许搜索</b><small>可通过全文搜索找到这条帖子</small></span></label>
+    <label class="compose-option"><input id="use-title" type="checkbox"><span><b>使用头衔</b><small>发布时显示当前头衔</small></span></label>
+  </div>
+  <footer><span></span><button id="compose-cancel" type="button">取消</button><button class="primary">确认发布</button></footer>
 </form></dialog>
 <dialog id="image-dialog" class="image-dialog">
   <button id="image-close" class="image-close" type="button" aria-label="关闭图片">×</button>

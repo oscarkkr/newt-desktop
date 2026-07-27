@@ -8,6 +8,7 @@ const app = await readFile(new URL("../web/app.js", import.meta.url), "utf8");
 const workflow = await readFile(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
 
 assert.equal(config.bundle.createUpdaterArtifacts, true);
+assert.equal(config.bundle.macOS.signingIdentity, "-");
 assert.ok(config.plugins.updater.pubkey.length > 80);
 assert.deepEqual(config.plugins.updater.endpoints, [
   "https://github.com/oscarkkr/newt-desktop/releases/latest/download/latest.json",

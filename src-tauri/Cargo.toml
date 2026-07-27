@@ -1,6 +1,6 @@
 [package]
 name = "newt-desktop"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2021"
 description = "轻量的新T树洞桌面客户端"
 
